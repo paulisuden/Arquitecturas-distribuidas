@@ -5,6 +5,8 @@
 
 using namespace std;
 
+#define BLOCK_SIZE 64  // Tamaño de bloque para la técnica de tiling
+
 // Estructura para pasar parámetros a los hilos
 struct ThreadData {
     int thread_id;
@@ -23,13 +25,20 @@ void printCorners(const vector<vector<float>>& matrix, int N) {
     cout << matrix[N-1][0] << " ... " << matrix[N-1][N-1] << endl;
 }
 
-// Multiplicación de matrices sin multihilos
+// Multiplicación de matrices sin multihilos (con bloqueo)
 vector<vector<float>> multiplyMatrices(const vector<vector<float>>& A, const vector<vector<float>>& B, int N) {
     vector<vector<float>> result(N, vector<float>(N, 0.0f));
-    for (int i = 0; i < N; ++i) {
-        for (int j = 0; j < N; ++j) {
-            for (int k = 0; k < N; ++k) {
-                result[i][j] += A[i][k] * B[k][j];
+    for (int ii = 0; ii < N; ii += BLOCK_SIZE) {
+        for (int jj = 0; jj < N; jj += BLOCK_SIZE) {
+            for (int kk = 0; kk < N; kk += BLOCK_SIZE) {
+                // Bloqueando los bucles internos para mejorar la caché
+                for (int i = ii; i < min(ii + BLOCK_SIZE, N); ++i) {
+                    for (int j = jj; j < min(jj + BLOCK_SIZE, N); ++j) {
+                        for (int k = kk; k < min(kk + BLOCK_SIZE, N); ++k) {
+                            result[i][j] += A[i][k] * B[k][j];
+                        }
+                    }
+                }
             }
         }
     }
@@ -49,10 +58,16 @@ void* threadMultiply(void* arg) {
     int start_row = (thread_id * N) / num_threads;
     int end_row = ((thread_id + 1) * N) / num_threads;
 
-    for (int i = start_row; i < end_row; ++i) {
-        for (int j = 0; j < N; ++j) {
-            for (int k = 0; k < N; ++k) {
-                (*C)[i][j] += (*A)[i][k] * (*B)[k][j];
+    for (int ii = start_row; ii < end_row; ii += BLOCK_SIZE) {
+        for (int jj = 0; jj < N; jj += BLOCK_SIZE) {
+            for (int kk = 0; kk < N; kk += BLOCK_SIZE) {
+                for (int i = ii; i < min(ii + BLOCK_SIZE, end_row); ++i) {
+                    for (int j = jj; j < min(jj + BLOCK_SIZE, N); ++j) {
+                        for (int k = kk; k < min(kk + BLOCK_SIZE, N); ++k) {
+                            (*C)[i][j] += (*A)[i][k] * (*B)[k][j];
+                        }
+                    }
+                }
             }
         }
     }
@@ -94,7 +109,7 @@ int main() {
     int N, num_threads;
     cout << "Ingrese el tamaño de las matrices NxN: ";
     cin >> N;
-    cout << "Ingrese el número de hilos: ";
+    cout << "Ingrese el número de hilos (10 o 20): ";
     cin >> num_threads;
 
     // Inicializar matrices con valores ejemplo
@@ -108,7 +123,6 @@ int main() {
     cout << "\nMatriz B:\n";
     printCorners(B, N);
 
-    
     // --- Multiplicación con multihilos ---
     struct timeval time1, time2;
     gettimeofday(&time1, NULL);
@@ -117,14 +131,13 @@ int main() {
     double time_taken_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
     cout << "\nTiempo de ejecución con multihilos: " << time_taken_threads << " segundos" << endl;
 
-    // Imprimir esquinas de la matriz resultante
+    /*Imprimir esquinas de la matriz resultante
     cout << "\nMatriz resultante C con multihilos:\n";
-    printCorners(C_threads, N);
+    printCorners(C_threads, N);*/
 
     // Sumatoria de los elementos de la matriz resultante
     float sum_threads = sumMatrix(C_threads, N);
     cout << "\nSumatoria de todos los elementos de la matriz resultante con multihilos: " << sum_threads << endl;
-
 
     // --- Multiplicación sin multihilos ---
     gettimeofday(&time1, NULL);
@@ -133,13 +146,13 @@ int main() {
     double time_taken_no_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
     cout << "\nTiempo de ejecución sin multihilos: " << time_taken_no_threads << " segundos" << endl;
 
-    // Imprimir esquinas de la matriz resultante
-    cout << "\nMatriz resultante C sin multihilos:\n";
-    printCorners(C_no_threads, N);
-
     // Sumatoria de los elementos de la matriz resultante
     float sum_no_threads = sumMatrix(C_no_threads, N);
     cout << "\nSumatoria de todos los elementos de la matriz resultante sin multihilos: " << sum_no_threads << endl;
+
+    // Imprimir esquinas de la matriz resultante
+    cout << "\nMatriz resultante:\n";
+    printCorners(C_no_threads, N);
 
     // Calcular el speedup
     double speedup = time_taken_no_threads / time_taken_threads;
