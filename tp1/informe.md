@@ -12,12 +12,22 @@
 ## Ejercicio 1
 ### Resultados obtenidos:
 
---- 
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej1.png)
 
 ## Ejercicio 2
 ### Resultados obtenidos:
 
----
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej2.1.png)
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej2.2.png)
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej2.3.png)
 
 ## Ejercicio 3
 ### Resultados obtenidos:
+
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej3.png)
+
+
+## Ejercicio 4
+### Resultados obtenidos:
+
+--- ![](https://github.com/paulisuden/Arquitecturas-distribuidas/blob/main/tp1/images/ej4.png)
