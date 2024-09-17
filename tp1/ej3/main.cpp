@@ -1,20 +1,20 @@
 #include <iostream>
 #include <vector>
 #include <pthread.h>
-#include <sys/time.h>
+#include <chrono>
 
 using namespace std;
 
 #define BLOCK_SIZE 64  // Tamaño de bloque para la técnica de tiling
 
-// Estructura para pasar parámetros a los hilos
+//  encapsular los datos que cada hilo necesita para trabajar
 struct ThreadData {
     int thread_id;
     int N;
     int num_threads;
-    const vector<vector<float>>* A;
+    const vector<vector<float>>* A; //punteros de las matrices de entrada
     const vector<vector<float>>* B;
-    vector<vector<float>>* C;
+    vector<vector<float>>* C; // puntero de la matriz de salida
 };
 
 // Función para imprimir las esquinas de una matriz NxN
@@ -45,7 +45,7 @@ vector<vector<float>> multiplyMatrices(const vector<vector<float>>& A, const vec
     return result;
 }
 
-// Función que ejecutará cada hilo para realizar parte de la multiplicación de matrices
+// void* (un puntero genérico que luego se usa como puntero a thread data)
 void* threadMultiply(void* arg) {
     ThreadData* data = (ThreadData*)arg;
     int N = data->N;
@@ -55,8 +55,8 @@ void* threadMultiply(void* arg) {
     const vector<vector<float>>* B = data->B;
     vector<vector<float>>* C = data->C;
 
-    int start_row = (thread_id * N) / num_threads;
-    int end_row = ((thread_id + 1) * N) / num_threads;
+    int start_row = (thread_id * N) / num_threads;            //son las filas que procesa cada hilo
+    int end_row = ((thread_id + 1) * N) / num_threads;       //  
 
     for (int ii = start_row; ii < end_row; ii += BLOCK_SIZE) {
         for (int jj = 0; jj < N; jj += BLOCK_SIZE) {
@@ -71,22 +71,21 @@ void* threadMultiply(void* arg) {
             }
         }
     }
-    pthread_exit(nullptr);
+    pthread_exit(nullptr); //esta función se utiliza para terminar el hilo de forma segura
 }
 
-// Multiplicación de matrices con multihilos
+// multiplicación de matrices con multihilos
 vector<vector<float>> multiplyMatricesMultithreaded(const vector<vector<float>>& A, const vector<vector<float>>& B, int N, int num_threads) {
     vector<vector<float>> C(N, vector<float>(N, 0.0f));
-    pthread_t threads[num_threads];
-    ThreadData thread_data[num_threads];
+    pthread_t threads[num_threads]; //arreglo de hilos
+    ThreadData thread_data[num_threads]; //arreglo de datos de hilos
 
-    // Crear hilos
     for (int i = 0; i < num_threads; ++i) {
         thread_data[i] = {i, N, num_threads, &A, &B, &C};
-        pthread_create(&threads[i], nullptr, threadMultiply, &thread_data[i]);
+        pthread_create(&threads[i], nullptr, threadMultiply, &thread_data[i]); //se crea cada hilo y se pasa a la función threadMultiply
     }
 
-    // Esperar que todos los hilos terminen
+    // espera a que todos los hilos terminen
     for (int i = 0; i < num_threads; ++i) {
         pthread_join(threads[i], nullptr);
     }
@@ -112,50 +111,48 @@ int main() {
     cout << "Ingrese el número de hilos (10 o 20): ";
     cin >> num_threads;
 
-    // Inicializar matrices con valores ejemplo
+    // inicializamoa las matrices conn 0.1 y 0.2
     vector<vector<float>> A(N, vector<float>(N, 0.1f));
     vector<vector<float>> B(N, vector<float>(N, 0.2f));
 
-    // Imprimir esquinas de las matrices iniciales
+    //esquinas de las matrices iniciales
     cout << "Matriz A:\n";
     printCorners(A, N);
-
     cout << "\nMatriz B:\n";
     printCorners(B, N);
 
-    // --- Multiplicación con multihilos ---
-    struct timeval time1, time2;
-    gettimeofday(&time1, NULL);
+    // multiplicación con multihilos ---
+    auto start = std::chrono::high_resolution_clock::now();
     vector<vector<float>> C_threads = multiplyMatricesMultithreaded(A, B, N, num_threads);
-    gettimeofday(&time2, NULL);
-    double time_taken_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
-    cout << "\nTiempo de ejecución con multihilos: " << time_taken_threads << " segundos" << endl;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration1 = end - start;
+    cout << "\nTiempo de ejecución con multihilos: " << duration1.count() << " segundos" << endl;
 
-    /*Imprimir esquinas de la matriz resultante
+    // Imprimir esquinas de la matriz resultante
     cout << "\nMatriz resultante C con multihilos:\n";
-    printCorners(C_threads, N);*/
+    printCorners(C_threads, N);
 
-    // Sumatoria de los elementos de la matriz resultante
+    // sumatoria de los elementos de la matriz resultante
     float sum_threads = sumMatrix(C_threads, N);
     cout << "\nSumatoria de todos los elementos de la matriz resultante con multihilos: " << sum_threads << endl;
 
-    // --- Multiplicación sin multihilos ---
-    gettimeofday(&time1, NULL);
+    // multiplicación sin multihilos ---
+    auto start2 = std::chrono::high_resolution_clock::now();
     vector<vector<float>> C_no_threads = multiplyMatrices(A, B, N);
-    gettimeofday(&time2, NULL);
-    double time_taken_no_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
-    cout << "\nTiempo de ejecución sin multihilos: " << time_taken_no_threads << " segundos" << endl;
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration2 = end2 - start2;
+    cout << "\nTiempo de ejecución sin multihilos: " << duration2.count() << " segundos" << endl;
 
-    // Sumatoria de los elementos de la matriz resultante
+
     float sum_no_threads = sumMatrix(C_no_threads, N);
     cout << "\nSumatoria de todos los elementos de la matriz resultante sin multihilos: " << sum_no_threads << endl;
 
-    // Imprimir esquinas de la matriz resultante
+
     cout << "\nMatriz resultante:\n";
     printCorners(C_no_threads, N);
 
-    // Calcular el speedup
-    double speedup = time_taken_no_threads / time_taken_threads;
+    // speedup
+    double speedup = duration2 / duration1;
     cout << "\nSpeedup: " << speedup << endl;
 
     return 0;

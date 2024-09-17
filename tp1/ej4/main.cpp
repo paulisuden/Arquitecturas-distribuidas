@@ -2,12 +2,12 @@
 #include <vector>
 #include <cmath>
 #include <pthread.h>
-#include <sys/time.h>
+#include <chrono>
 #include <algorithm>
 
 using namespace std;
 
-// Estructura para pasar parámetros a los hilos
+// encapsular los datos que cada hilo necesita para trabajar
 struct ThreadData {
     long long int start;
     long long int end;
@@ -15,7 +15,7 @@ struct ThreadData {
     pthread_mutex_t* mutex;
 };
 
-// Función para determinar si un número es primo
+//
 bool esPrimo(long long int n) {
     if (n <= 1) return false;
     if (n == 2 || n == 3) return true;
@@ -26,7 +26,7 @@ bool esPrimo(long long int n) {
     return true;
 }
 
-// Versión sin multihilos para encontrar números primos
+//sin multihilos para encontrar números primos
 vector<long long int> encontrarPrimos(long long int N) {
     vector<long long int> primos;
     for (long long int i = 2; i < N; ++i) {
@@ -37,7 +37,7 @@ vector<long long int> encontrarPrimos(long long int N) {
     return primos;
 }
 
-// Función que ejecutarán los hilos
+//multihilos
 void* encontrarPrimosPorRango(void* arg) {
     ThreadData* data = (ThreadData*)arg;
     vector<long long int> primos_local;
@@ -55,7 +55,7 @@ void* encontrarPrimosPorRango(void* arg) {
     pthread_exit(nullptr);
 }
 
-// Versión con multihilos para encontrar números primos
+// multihilos para encontrar números primos
 vector<long long int> encontrarPrimosMultithreaded(long long int N, int num_threads) {
     vector<long long int> primos;
     pthread_t threads[num_threads];
@@ -73,7 +73,7 @@ vector<long long int> encontrarPrimosMultithreaded(long long int N, int num_thre
         pthread_create(&threads[i], nullptr, encontrarPrimosPorRango, &thread_data[i]);
     }
 
-    // Esperar que todos los hilos terminen
+    // esperar que todos los hilos terminen
     for (int i = 0; i < num_threads; ++i) {
         pthread_join(threads[i], nullptr);
     }
@@ -91,32 +91,32 @@ int main() {
 
     struct timeval time1, time2;
 
-    // --- Versión sin multihilos ---
-    gettimeofday(&time1, NULL);
+    //sin multihilos 
+    auto start2 = std::chrono::high_resolution_clock::now();
     vector<long long int> primos = encontrarPrimos(N);
-    gettimeofday(&time2, NULL);
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration2 = end2 - start2;
     double time_taken_no_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
 
-    cout << "Tiempo de ejecución sin multihilos: " << time_taken_no_threads << " segundos\n";
+    cout << "\nTiempo de ejecución sin multihilos: " << duration2.count() << " segundos" << endl;
     cout << "Cantidad de números primos menores que " << N << ": " << primos.size() << endl;
 
-    // Mostrar los 10 números primos más grandes
+    // los 10 números primos más grandes
     cout << "Los 10 números primos más grandes menores que " << N << " son:\n";
     for (int i = max(0, (int)primos.size() - 10); i < primos.size(); ++i) {
         cout << primos[i] << " ";
     }
     cout << endl;
 
-    // --- Versión con multihilos ---
-    gettimeofday(&time1, NULL);
+    // con multihilos
+    auto start = std::chrono::high_resolution_clock::now();
     vector<long long int> primos_multithreaded = encontrarPrimosMultithreaded(N, num_threads);
-    gettimeofday(&time2, NULL);
-    double time_taken_threads = (time2.tv_sec - time1.tv_sec) + (time2.tv_usec - time1.tv_usec) / 1000000.0;
-
-    cout << "Tiempo de ejecución con multihilos: " << time_taken_threads << " segundos\n";
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration1 = end - start;
+    cout << "\nTiempo de ejecución con multihilos: " << duration1.count() << " segundos" << endl;
     cout << "Cantidad de números primos menores que " << N << ": " << primos_multithreaded.size() << endl;
 
-    // Mostrar los 10 números primos más grandes
+    // los 10 números primos más grandes
     sort(primos_multithreaded.begin(), primos_multithreaded.end());
     cout << "Los 10 números primos más grandes menores que " << N << " son:\n";
     for (int i = max(0, (int)primos_multithreaded.size() - 10); i < primos_multithreaded.size(); ++i) {
@@ -124,8 +124,8 @@ int main() {
     }
     cout << endl;
 
-    // Calcular el speedup
-    double speedup = time_taken_no_threads / time_taken_threads;
+    // speedup
+    double speedup = duration2 / duration1;
     cout << "Speedup: " << speedup << endl;
 
     return 0;
